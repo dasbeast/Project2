@@ -3,12 +3,15 @@
 #include <limits>
 #include <cstdlib> // For rand() and srand()
 #include <ctime>   // For time()
+#include <chrono>
+#include <sys/resource.h>
 
 using namespace std;
 
 bool checkWinner(char symbol);
 bool checkWinner2(char symbol);
-
+bool checkWinner3(char symbol);
+bool checkWinner4(char symbol);
 constexpr int BOARD_SIZE = 3;
 char board[BOARD_SIZE][BOARD_SIZE];
 char PLAYER = 'X';
@@ -17,8 +20,16 @@ int compEval = 0;
 int playerEval = 0;
 int nodesCreated1 = 0;
 int nodesCreated2 = 0;
-bool (*functions[])(char) = {checkWinner, checkWinner2};
+long long playerTime = 0;
+long long computerTime = 0;
+int evalArray[4] = {0, 0, 0, 0};
+bool (*functions[])(char) = {checkWinner, checkWinner2, checkWinner3, checkWinner4};
 
+long long getMemoryUsage() {
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+    return usage.ru_maxrss;
+}
 void printBoard() {
     cout << "  0 1 2" << endl;
     for (int i = 0; i < BOARD_SIZE; i++) {
@@ -40,6 +51,8 @@ bool getUserMove(int& x, int& y) {
     return false;
 }
 
+
+// checkWinner uses a straightforward approach to check for three in a row.
 bool checkWinner(char symbol) {
     // Check rows
     for (int i = 0; i < BOARD_SIZE; i++) {
@@ -65,6 +78,8 @@ bool checkWinner(char symbol) {
 
     return false;
 }
+
+// checkWinner2 uses a magic square approach to check for a winner.
 
 bool checkWinner2(char symbol)
 {
@@ -141,8 +156,102 @@ bool checkWinner2(char symbol)
 
 }
 
+// checkWinner3 uses bitwise operations to check for a winner.
+bool checkWinner3(char player) {
+    int mask = 0;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (board[i][j] == player) {
+                mask |= (1 << (i * 3 + j));
+            }
+        }
+    }
+
+    // Check rows
+    for (int i = 0; i < 3; i++) {
+        if ((mask & 0b111 << (i * 3)) == 0b111 << (i * 3)) {
+            return true;
+        }
+    }
+
+    // Check columns
+    for (int i = 0; i < 3; i++) {
+        if ((mask & 0b100100100) == 0b100100100 << i) {
+            return true;
+        }
+    }
+
+    // Check diagonals
+    if ((mask & 0b100010001) == 0b100010001) {
+        return true;
+    }
+    if ((mask & 0b001010100) == 0b001010100) {
+        return true;
+    }
+    return false;
+}
+
+
+// checkWinner4 assigns scores based on potential winning moves and checks if the given symbol has the maximum possible score.
+bool checkWinner4(char symbol) {
+    int opponent = (symbol == PLAYER) ? COMPUTER : PLAYER;
+
+    // Check rows
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        int rowScore = 0;
+        for (int j = 0; j < BOARD_SIZE; j++) {
+            if (board[i][j] == symbol) {
+                rowScore += 1;
+            } else if (board[i][j] == opponent) {
+                rowScore -= 1;
+            }
+        }
+        if (rowScore == BOARD_SIZE) {
+            return true;
+        }
+    }
+
+    // Check columns
+    for (int j = 0; j < BOARD_SIZE; j++) {
+        int colScore = 0;
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            if (board[i][j] == symbol) {
+                colScore += 1;
+            } else if (board[i][j] == opponent) {
+                colScore -= 1;
+            }
+        }
+        if (colScore == BOARD_SIZE) {
+            return true;
+        }
+    }
+
+    // Check diagonals
+    int diag1Score = 0;
+    int diag2Score = 0;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if (board[i][i] == symbol) {
+            diag1Score += 1;
+        } else if (board[i][i] == opponent) {
+            diag1Score -= 1;
+        }
+
+        if (board[i][BOARD_SIZE - i - 1] == symbol) {
+            diag2Score += 1;
+        } else if (board[i][BOARD_SIZE - i - 1] == opponent) {
+            diag2Score -= 1;
+        }
+    }
+    if (diag1Score == BOARD_SIZE || diag2Score == BOARD_SIZE) {
+        return true;
+    }
+
+    return false;
+}
+
 int minimax(char player, int depth, int alpha, int beta) {
     // Check for a winner
+    auto start = chrono::high_resolution_clock::now();
     if(player == COMPUTER)
     {
         nodesCreated2++;
@@ -151,6 +260,8 @@ int minimax(char player, int depth, int alpha, int beta) {
     {
         nodesCreated1++;
     }
+
+
     if (functions[compEval-1](COMPUTER)) {
         return 1;
     } else if (functions[playerEval-1](PLAYER)) {
@@ -206,6 +317,14 @@ int minimax(char player, int depth, int alpha, int beta) {
         }
     }
 
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start).count();
+
+    if (player == COMPUTER) {
+        computerTime += duration;
+    } else {
+        playerTime += duration;
+    }
     return bestScore;
 }
 
@@ -296,9 +415,12 @@ void playGame() {
         computerMove1();
         if (functions[playerEval-1](PLAYER)) {
             printBoard();
-            cout << "Player wins!" << endl;
+            cout << "Computer 1 wins!" << endl;
+            evalArray[compEval-1]++;
             return;
         }
+
+
 
         // Check for a tie
 
@@ -309,9 +431,11 @@ void playGame() {
 
         if (functions[compEval-1](COMPUTER)) {
             printBoard();
-            cout << "Computer wins!" << endl;
+            cout << "Computer 2 wins!" << endl;
+            evalArray[compEval-1]++;
             return;
         }
+
         bool tie = true;
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int j = 0; j < BOARD_SIZE; j++) {
@@ -324,6 +448,7 @@ void playGame() {
         if (tie) {
             printBoard();
             cout << "It's a tie!" << endl;
+            cout << endl;
             return;
         }
 
@@ -333,16 +458,22 @@ void playGame() {
 int main() {
     bool flag = true;
     int choice;
-    while(flag)
-    {
+    while (flag) {
         playGame();
-        printf("Nodes created by eval 1: %d vs eval 2: %d\n", nodesCreated1, nodesCreated2);
-        printf("\nPlay again (1) or Exit (0) \n");
+        printf("Nodes created by eval %d: %d vs eval %d: %d\n", playerEval, nodesCreated1, compEval, nodesCreated2);
+        printf("Execution time for eval %d: %lld microseconds vs eval %d: %lld microseconds\n", playerEval, playerTime,
+               compEval, computerTime);
+        printf("Memory usage: %lld bytes\n", getMemoryUsage());
+        for (int i = 0; i < 4; i++) {
+            printf("Eval Function %d wins: %d\n", (i + 1), evalArray[i]);
+        }
+        printf("\nEnter any number to play again or Exit (0) \n");
         cin >> choice;
-        if(choice == 0)
-        {
+        if (choice == 0) {
             flag = false;
         }
+        nodesCreated1 = 0;
+        nodesCreated2 = 0;
     }
     return 0;
 }
