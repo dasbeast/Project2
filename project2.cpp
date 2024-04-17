@@ -42,16 +42,6 @@ void printBoard() {
     cout << endl;
 }
 
-bool isValidMove(int x, int y) {
-    return (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] == ' ');
-}
-
-bool getUserMove(int& x, int& y) {
-    // No user input in AI vs AI mode, so this function is not needed
-    return false;
-}
-
-
 // checkWinner uses a straightforward approach to check for three in a row.
 bool checkWinner(char symbol) {
     // Check rows
@@ -167,21 +157,18 @@ bool checkWinner3(char player) {
         }
     }
 
-    // Check rows
     for (int i = 0; i < 3; i++) {
         if ((mask & 0b111 << (i * 3)) == 0b111 << (i * 3)) {
             return true;
         }
     }
 
-    // Check columns
     for (int i = 0; i < 3; i++) {
         if ((mask & 0b100100100) == 0b100100100 << i) {
             return true;
         }
     }
 
-    // Check diagonals
     if ((mask & 0b100010001) == 0b100010001) {
         return true;
     }
@@ -195,8 +182,6 @@ bool checkWinner3(char player) {
 // checkWinner4 assigns scores based on potential winning moves and checks if the given symbol has the maximum possible score.
 bool checkWinner4(char symbol) {
     int opponent = (symbol == PLAYER) ? COMPUTER : PLAYER;
-
-    // Check rows
     for (int i = 0; i < BOARD_SIZE; i++) {
         int rowScore = 0;
         for (int j = 0; j < BOARD_SIZE; j++) {
@@ -211,7 +196,6 @@ bool checkWinner4(char symbol) {
         }
     }
 
-    // Check columns
     for (int j = 0; j < BOARD_SIZE; j++) {
         int colScore = 0;
         for (int i = 0; i < BOARD_SIZE; i++) {
@@ -226,7 +210,6 @@ bool checkWinner4(char symbol) {
         }
     }
 
-    // Check diagonals
     int diag1Score = 0;
     int diag2Score = 0;
     for (int i = 0; i < BOARD_SIZE; i++) {
@@ -245,7 +228,6 @@ bool checkWinner4(char symbol) {
     if (diag1Score == BOARD_SIZE || diag2Score == BOARD_SIZE) {
         return true;
     }
-
     return false;
 }
 
@@ -260,7 +242,6 @@ int minimax(char player, int depth, int alpha, int beta) {
     {
         nodesCreated1++;
     }
-
 
     if (functions[compEval-1](COMPUTER)) {
         return 1;
@@ -401,17 +382,6 @@ void playGame() {
 
     while (true) {
         printBoard();
-
-        // User's move (Removed for AI vs AI)
-        /*int x, y;
-        while (true) {
-            if (getUserMove(x, y)) {
-                board[x][y] = PLAYER;
-                break;
-            } else {
-                cout << "Invalid move. Try again." << endl;
-            }
-        }*/
         computerMove1();
         if (functions[playerEval-1](PLAYER)) {
             printBoard();
@@ -420,13 +390,6 @@ void playGame() {
             return;
         }
 
-
-
-        // Check for a tie
-
-
-
-        // Computer's move
         computerMove();
 
         if (functions[compEval-1](COMPUTER)) {
